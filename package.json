@@ -20,7 +20,7 @@
     "graphql": "15.5.0",
     "lodash": "4.17.21",
     "moleculer": "0.14.13",
-    "moleculer-db": "0.8.13",
+    "moleculer-db": "0.8.14",
     "moleculer-db-adapter-mongoose": "0.8.9",
     "moleculer-repl": "0.6.4",
     "moleculer-web": "0.10.0-beta2",
