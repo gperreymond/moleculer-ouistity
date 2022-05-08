@@ -1,8 +1,10 @@
 const r = require('rethinkdb')
 const { ApolloServer, gql } = require('apollo-server')
 const responseCachePlugin = require('apollo-server-plugin-response-cache')
+const { BaseRedisCache } = require('apollo-server-cache-redis');
+const Redis = require('ioredis');
 
-const { apollo } = require('../application.config')
+const { apollo, redis } = require('../application.config')
 
 module.exports = {
   name: 'graphql',
@@ -24,14 +26,27 @@ module.exports = {
     startApollo($moleculer, $conn) {
       this.controller = new ApolloServer({
         tracing: true,
+        csrfPrevention: true,
+        cache: new BaseRedisCache({
+          client: new Redis({
+            host: redis.hostname,
+          }),
+        }),
         typeDefs: gql`${this.settings.graphql.schemas}${this.settings.graphql.queries}`,
         resolvers: this.settings.graphql.resolvers,
         context: async () => ({
           $moleculer,
           $conn
         }),
-        plugins: [responseCachePlugin()]
+        plugins: [responseCachePlugin({
+          shouldReadFromCache: (requestContext) => (requestContext.request.http.headers.get('cache-control') !== 'no-cache'),
+          shouldWriteToCache: (requestContext) => (requestContext.request.http.headers.get('cache-control') !== 'no-cache')
+        })]
       })
+    },
+    stopApollo() {
+      if (undefined !== this.controller)
+        this.controller.stop()
     }
   },
   async created () {
@@ -55,7 +70,7 @@ module.exports = {
   },
   async started () {
     // TODO this.controller is sometimes undefined, why ?
-    if (!this.controller) {
+    if (undefined !== this.controller) {
       const $conn = await r.connect({
         host: this.settings.rethinkdb.hostname,
         port: this.settings.rethinkdb.port,
@@ -69,12 +84,13 @@ module.exports = {
       this.logger.info('RethinkDB adapter has connected successfully.')
       const $moleculer = this.broker
       this.startApollo($moleculer, $conn)
+      await this.controller.listen(apollo)
+      return true
     }
-    await this.controller.listen(apollo)
-    return true
+    return false
   },
   async stopped () {
-    this.controller = false
+    this.stopApollo()
     return true
   }
 }
