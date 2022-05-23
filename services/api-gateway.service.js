@@ -2,12 +2,17 @@ const sh = require('exec-sh').promise
 const path = require('path')
 const { readFileSync, unlinkSync } = require('fs')
 const { snakeCase } = require('lodash')
+const Redis = require("ioredis")
 
 const Error404 = readFileSync(path.resolve(__dirname, '../assets/images/404.jpg'))
 const WebMixin = require('moleculer-web')
 const swaggerJsdoc = require('swagger-jsdoc')
 
-const { moleculer: { port }, global: { archivesMountPath, imageCacheTTL } } = require('../application.config')
+const { moleculer: { port }, global: { archivesMountPath, imageCacheTTL }, redis } = require('../application.config')
+const r = new Redis({
+  host: redis.hostname,
+})
+
 
 const options = {
   definition: {
@@ -74,6 +79,13 @@ module.exports = {
         async 'GET images/:urn' (req, res) {
           try {
             const { urn } = req.$params
+            const cache = await r.get(urn)
+            if (cache) {
+              res.setHeader('Content-Type', 'image')
+              res.setHeader('Cache-Control', `public, max-age=${imageCacheTTL}`)
+              res.end(cache)
+              return
+            }
             const { filepath, name, type } = await req.$ctx.broker.call('PagesDomain.getByUrn', { urn })
             const basename = snakeCase(path.basename(name, path.extname(name)))
             // await sh(`7z e -o/tmp "${filepath}" "${name}"`, true)
@@ -90,8 +102,9 @@ module.exports = {
             // read file
             const buffer = readFileSync(`/tmp/${urn}`)
             unlinkSync(`/tmp/${urn}`)
+            await r.set(urn, buffer, 'EX', 300)
             // send buffer as image
-            res.setHeader('Content-Type', 'image')
+            res.setHeader('Content-Type', 'image/jpg')
             res.setHeader('Cache-Control', `public, max-age=${imageCacheTTL}`)
             res.end(buffer)
           } catch (e) {
