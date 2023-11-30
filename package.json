@@ -16,7 +16,7 @@
     "dotenv": "9.0.2",
     "exec-sh": "0.4.0",
     "fs-extra": "10.0.0",
-    "glob": "7.1.7",
+    "glob": "9.0.0",
     "glob-promise": "4.1.0",
     "graphql": "15.5.0",
     "ioredis": "4.28.2",
