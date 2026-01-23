@@ -20,7 +20,7 @@
     "glob-promise": "4.1.0",
     "graphql": "15.5.0",
     "ioredis": "4.28.2",
-    "lodash": "4.17.21",
+    "lodash": "4.17.23",
     "moleculer": "0.14.13",
     "moleculer-db": "0.8.16",
     "moleculer-db-adapter-mongoose": "0.8.9",
